@@ -1,65 +1,148 @@
-import Image from "next/image";
+"use client";
+import React, { useEffect, useRef } from "react";
 
-export default function Home() {
+type Message = {
+  role: "user" | "assistant"
+  text: string
+};
+
+export default function App() {
+  const [messages, setMessages] = React.useState<Message[]>([]);
+  const [input, setInput] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, loading]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage = input.trim();
+
+    // Add user message immediately
+    setMessages((prev) => [...prev, { role: "user", text: userMessage }]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      const data = await res.json();
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: data.reply },
+      ]);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Something went wrong." },
+      ]);
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      sendMessage();
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex h-screen bg-[#131314] text-white">
+
+      {/* Sidebar */}
+      <div className="w-64 bg-[#1e1f20] p-4 border-r border-gray-800 hidden md:block">
+        <h2 className="text-lg font-semibold mb-4">Chats</h2>
+
+        <div className="space-y-2 overflow-y-auto">
+          {messages
+            .filter((m) => m.role === "user")
+            .map((msg, index) => (
+              <div
+                key={index}
+                className="p-2 rounded-md bg-[#2a2b2d] text-sm truncate cursor-pointer hover:bg-[#333436] transition"
+              >
+                {msg.text.slice(0, 30)}
+              </div>
+            ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex flex-col flex-1">
+
+        {/* Header */}
+        <div className="p-4 border-b border-gray-800 text-xl font-semibold">
+          Simple
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {messages.map((msg, index) => (
+            <div
+              key={index}
+              className={`flex ${
+                msg.role === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              <div
+                className={`max-w-xl px-5 py-3 rounded-2xl text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-[#3b82f6] text-white"
+                    : "bg-[#2a2b2d] text-gray-200"
+                }`}
+              >
+                {msg.text}
+              </div>
+            </div>
+          ))}
+
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-[#2a2b2d] px-5 py-3 rounded-2xl text-gray-400 text-sm animate-pulse">
+                Thinking...
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="p-4 border-t border-gray-800 bg-[#1e1f20]">
+          <div className="flex gap-3">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={loading}
+              className="flex-1 bg-[#2a2b2d] rounded-xl px-4 py-3 text-sm outline-none border border-gray-700 focus:border-blue-500 disabled:opacity-50"
+              placeholder="Ask something..."
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <button
+              onClick={sendMessage}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl text-sm font-medium transition disabled:opacity-50"
+            >
+              Send
+            </button>
+          </div>
         </div>
-      </main>
+
+      </div>
     </div>
-  );
-}
+  )
+};
