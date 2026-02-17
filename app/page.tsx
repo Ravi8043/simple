@@ -86,7 +86,7 @@ export default function App() {
 
         {/* Header */}
         <div className="p-4 border-b border-gray-800 text-xl font-semibold">
-          Simple
+          Tejas's Chatbot
         </div>
 
         {/* Messages */}
